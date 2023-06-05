@@ -205,21 +205,15 @@ always @* begin
 
                 if (gmii_rx_dv_d4 && gmii_rx_er_d4) begin
                     // error
-                    m_axis_tlast_next = 1'b1;
                     m_axis_tuser_next = 1'b1;
                     error_bad_frame_next = 1'b1;
-                    state_next = STATE_WAIT_LAST;
-                end else if (!gmii_rx_dv) begin
+                end 
+		
+		if (!gmii_rx_dv) begin
                     // end of packet
                     m_axis_tlast_next = 1'b1;
-                    if (gmii_rx_er_d0 || gmii_rx_er_d1 || gmii_rx_er_d2 || gmii_rx_er_d3) begin
-                        // error received in FCS bytes
-                        m_axis_tuser_next = 1'b1;
-                        error_bad_frame_next = 1'b1;
-                    end else if ({gmii_rxd_d0, gmii_rxd_d1, gmii_rxd_d2, gmii_rxd_d3} == ~crc_next) begin
-                        // FCS good
-                        m_axis_tuser_next = 1'b0;
-                    end else begin
+                    
+	    	    if ({gmii_rxd_d0, gmii_rxd_d1, gmii_rxd_d2, gmii_rxd_d3} != ~crc_next) begin
                         // FCS bad
                         m_axis_tuser_next = 1'b1;
                         error_bad_frame_next = 1'b1;
