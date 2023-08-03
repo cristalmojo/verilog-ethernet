@@ -91,7 +91,7 @@ localparam [7:0]
 localparam [2:0]
     STATE_IDLE = 3'd0,
     STATE_PAYLOAD = 3'd1,
-    STATE_WAIT_LAST = 3'd2;
+    STATE_FCS = 3'd2;
 
 reg [2:0] state_reg = STATE_IDLE, state_next;
 
@@ -203,42 +203,50 @@ always @* begin
                 m_axis_tdata_next = gmii_rxd_d4;
                 m_axis_tvalid_next = 1'b1;
 
+		m_axis_tuser_next = m_axis_tuser_reg;
+		error_bad_frame_next = error_bad_frame_reg;
+		error_bad_fcs_next = error_bad_fcs_reg;
+
                 if (gmii_rx_dv_d4 && gmii_rx_er_d4) begin
                     // error
-                    m_axis_tlast_next = 1'b1;
                     m_axis_tuser_next = 1'b1;
                     error_bad_frame_next = 1'b1;
-                    state_next = STATE_WAIT_LAST;
-                end else if (!gmii_rx_dv) begin
-                    // end of packet
+                end 
+		
+		if (!gmii_rx_dv) begin
+                    // end of packet received
                     m_axis_tlast_next = 1'b1;
-                    if (gmii_rx_er_d0 || gmii_rx_er_d1 || gmii_rx_er_d2 || gmii_rx_er_d3) begin
-                        // error received in FCS bytes
-                        m_axis_tuser_next = 1'b1;
-                        error_bad_frame_next = 1'b1;
-                    end else if ({gmii_rxd_d0, gmii_rxd_d1, gmii_rxd_d2, gmii_rxd_d3} == ~crc_next) begin
-                        // FCS good
-                        m_axis_tuser_next = 1'b0;
-                    end else begin
+                    
+	    	    if ({gmii_rxd_d0, gmii_rxd_d1, gmii_rxd_d2, gmii_rxd_d3} != ~crc_next) begin
                         // FCS bad
                         m_axis_tuser_next = 1'b1;
                         error_bad_frame_next = 1'b1;
                         error_bad_fcs_next = 1'b1;
                     end
-                    state_next = STATE_IDLE;
+                    state_next = STATE_FCS;
                 end else begin
                     state_next = STATE_PAYLOAD;
                 end
             end
-            STATE_WAIT_LAST: begin
-                // wait for end of packet
+            STATE_FCS: begin
+                m_axis_tdata_next = gmii_rxd_d4;
+                m_axis_tvalid_next = 1'b1;
 
-                if (~gmii_rx_dv) begin
-                    state_next = STATE_IDLE;
-                end else begin
-                    state_next = STATE_WAIT_LAST;
-                end
-            end
+		m_axis_tuser_next = m_axis_tuser_reg;
+		error_bad_frame_next = error_bad_frame_reg;
+		error_bad_fcs_next = error_bad_fcs_reg;
+
+                if (gmii_rx_dv_d4 && gmii_rx_er_d4) begin
+                    // error
+                    m_axis_tuser_next = 1'b1;
+                    error_bad_frame_next = 1'b1;
+                end 
+
+		if (!gmii_rx_dv_d4) begin
+	            m_axis_tvalid_next = 1'b0;
+		    state_next = STATE_IDLE;
+	        end
+	    end
         endcase
     end
 end
@@ -273,10 +281,10 @@ always @(posedge clk) begin
                 gmii_rxd_d4 <= gmii_rxd_d3;
 
                 gmii_rx_dv_d0 <= gmii_rx_dv & gmii_rx_dv_d0;
-                gmii_rx_dv_d1 <= gmii_rx_dv_d0 & gmii_rx_dv;
-                gmii_rx_dv_d2 <= gmii_rx_dv_d1 & gmii_rx_dv;
-                gmii_rx_dv_d3 <= gmii_rx_dv_d2 & gmii_rx_dv;
-                gmii_rx_dv_d4 <= gmii_rx_dv_d3 & gmii_rx_dv;
+                gmii_rx_dv_d1 <= gmii_rx_dv_d0;
+                gmii_rx_dv_d2 <= gmii_rx_dv_d1;
+                gmii_rx_dv_d3 <= gmii_rx_dv_d2;
+                gmii_rx_dv_d4 <= gmii_rx_dv_d3;
 
                 gmii_rx_er_d0 <= gmii_rx_er | gmii_rx_er_d0;
                 gmii_rx_er_d1 <= gmii_rx_er_d0;
@@ -295,10 +303,10 @@ always @(posedge clk) begin
             gmii_rxd_d4 <= gmii_rxd_d3;
 
             gmii_rx_dv_d0 <= gmii_rx_dv;
-            gmii_rx_dv_d1 <= gmii_rx_dv_d0 & gmii_rx_dv;
-            gmii_rx_dv_d2 <= gmii_rx_dv_d1 & gmii_rx_dv;
-            gmii_rx_dv_d3 <= gmii_rx_dv_d2 & gmii_rx_dv;
-            gmii_rx_dv_d4 <= gmii_rx_dv_d3 & gmii_rx_dv;
+            gmii_rx_dv_d1 <= gmii_rx_dv_d0;
+            gmii_rx_dv_d2 <= gmii_rx_dv_d1;
+            gmii_rx_dv_d3 <= gmii_rx_dv_d2;
+            gmii_rx_dv_d4 <= gmii_rx_dv_d3;
 
             gmii_rx_er_d0 <= gmii_rx_er;
             gmii_rx_er_d1 <= gmii_rx_er_d0;
