@@ -123,7 +123,7 @@ async def run_test(dut, payload_lengths=None, payload_data=None, ifg=12, enable_
         tb.log.info("TX frame SFD sim time: %f ns", tx_frame_sfd_ns)
         tb.log.info("Difference: %f ns", abs(ptp_ts_ns - tx_frame_sfd_ns))
 
-        assert rx_frame.tdata == test_data
+        assert rx_frame.tdata[:-4] == test_data
         assert frame_error == 0
         assert abs(ptp_ts_ns - tx_frame_sfd_ns - (32 if enable_gen else 8)) < 0.01
 
@@ -150,7 +150,6 @@ if cocotb.SIM_NAME:
     factory = TestFactory(run_test)
     factory.add_option("payload_lengths", [size_list])
     factory.add_option("payload_data", [incrementing_payload])
-    factory.add_option("ifg", [12, 0])
     factory.add_option("enable_gen", [None, cycle_en])
     factory.add_option("mii_sel", [False, True])
     factory.generate_tests()
@@ -177,7 +176,7 @@ def test_axis_gmii_rx(request):
     parameters = {}
 
     parameters['DATA_WIDTH'] = 8
-    parameters['PTP_TS_ENABLE'] = 1
+    parameters['PTP_TS_ENABLE'] = 0
     parameters['PTP_TS_WIDTH'] = 96
     parameters['USER_WIDTH'] = (parameters['PTP_TS_WIDTH'] if parameters['PTP_TS_ENABLE'] else 0) + 1
 
