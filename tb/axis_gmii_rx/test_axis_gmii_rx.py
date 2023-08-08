@@ -124,6 +124,7 @@ async def run_test(dut, payload_lengths=None, payload_data=None, ifg=12, enable_
         tb.log.info("Difference: %f ns", abs(ptp_ts_ns - tx_frame_sfd_ns))
 
         assert rx_frame.tdata[:-4] == test_data
+        assert rx_frame.tdata[-4:] == tx_frame.get_fcs()
         assert frame_error == 0
         assert abs(ptp_ts_ns - tx_frame_sfd_ns - (32 if enable_gen else 8)) < 0.01
 
